@@ -22726,7 +22726,8 @@
       <emu-alg>
         1. Let _exprRef_ be ? Evaluation of |Expression|.
         1. Let _exprValue_ be ? GetValue(_exprRef_).
-        1. If GetGeneratorKind() is ~async~, set _exprValue_ to ? Await(_exprValue_).
+        1. Let _genContext_ be the running execution context.
+        1. If GetGeneratorKind(_genContext_) is ~async~, set _exprValue_ to ? Await(_exprValue_).
         1. Return ReturnCompletion(_exprValue_).
       </emu-alg>
     </emu-clause>
@@ -24254,7 +24255,8 @@
       </emu-alg>
       <emu-grammar>YieldExpression : `yield` `*` AssignmentExpression</emu-grammar>
       <emu-alg>
-        1. Let _generatorKind_ be GetGeneratorKind().
+        1. Let _genContext_ be the running execution context.
+        1. Let _generatorKind_ be GetGeneratorKind(_genContext_).
         1. Let _exprRef_ be ? Evaluation of |AssignmentExpression|.
         1. Let _value_ be ? GetValue(_exprRef_).
         1. Let _iteratorRecord_ be ? GetIterator(_value_, _generatorKind_).
@@ -43341,6 +43343,7 @@ THH:mm:ss.sss
         <p>To aid verifying that a read-modify-write modification function's algorithm steps constitute a pure, mathematical function, the following editorial conventions are recommended:</p>
         <ul>
           <li>They do not access, directly or transitively via invoked abstract operations and abstract closures, any language or specification values except their parameters and captured values.</li>
+          <li>They do not invoke, directly or transitively, abstract operations and abstract closures that return Completion Records.</li>
           <li>They do not return Completion Records.</li>
         </ul>
       </emu-note>
@@ -45436,9 +45439,9 @@ THH:mm:ss.sss
       <h1>Atomics.add ( _typedArray_, _index_, _value_ )</h1>
       <p>This function performs the following steps when called:</p>
       <emu-alg>
-        1. Let _type_ be TypedArrayElementType(_typedArray_).
-        1. Let _isLittleEndian_ be the value of the [[LittleEndian]] field of the surrounding agent's Agent Record.
-        1. Let _add_ be a new read-modify-write modification function with parameters (_xBytes_, _yBytes_) that captures _type_ and _isLittleEndian_ and performs the following steps atomically when called:
+        1. Let _add_ be a new read-modify-write modification function with parameters (_xBytes_, _yBytes_) that captures _typedArray_ and performs the following steps atomically when called:
+          1. Let _type_ be TypedArrayElementType(_typedArray_).
+          1. Let _isLittleEndian_ be the value of the [[LittleEndian]] field of the surrounding agent's Agent Record.
           1. Let _x_ be RawBytesToNumeric(_type_, _xBytes_, _isLittleEndian_).
           1. Let _y_ be RawBytesToNumeric(_type_, _yBytes_, _isLittleEndian_).
           1. If _x_ is a Number, then
@@ -45562,9 +45565,9 @@ THH:mm:ss.sss
       <h1>Atomics.sub ( _typedArray_, _index_, _value_ )</h1>
       <p>This function performs the following steps when called:</p>
       <emu-alg>
-        1. Let _type_ be TypedArrayElementType(_typedArray_).
-        1. Let _isLittleEndian_ be the value of the [[LittleEndian]] field of the surrounding agent's Agent Record.
-        1. Let _subtract_ be a new read-modify-write modification function with parameters (_xBytes_, _yBytes_) that captures _type_ and _isLittleEndian_ and performs the following steps atomically when called:
+        1. Let _subtract_ be a new read-modify-write modification function with parameters (_xBytes_, _yBytes_) that captures _typedArray_ and performs the following steps atomically when called:
+          1. Let _type_ be TypedArrayElementType(_typedArray_).
+          1. Let _isLittleEndian_ be the value of the [[LittleEndian]] field of the surrounding agent's Agent Record.
           1. Let _x_ be RawBytesToNumeric(_type_, _xBytes_, _isLittleEndian_).
           1. Let _y_ be RawBytesToNumeric(_type_, _yBytes_, _isLittleEndian_).
           1. If _x_ is a Number, then
@@ -48869,11 +48872,12 @@ THH:mm:ss.sss
       </emu-clause>
 
       <emu-clause id="sec-getgeneratorkind" type="abstract operation">
-        <h1>GetGeneratorKind ( ): ~non-generator~, ~sync~, or ~async~</h1>
+        <h1>GetGeneratorKind (
+              _genContext_: an execution context,
+           ): ~non-generator~, ~sync~, or ~async~</h1>
         <dl class="header">
         </dl>
         <emu-alg>
-          1. Let _genContext_ be the running execution context.
           1. If _genContext_ does not have a Generator component, return ~non-generator~.
           1. Let _generator_ be the Generator component of _genContext_.
           1. If _generator_ has an [[AsyncGeneratorState]] internal slot, return ~async~.
@@ -48895,7 +48899,7 @@ THH:mm:ss.sss
           1. Let _genContext_ be the running execution context.
           1. Assert: _genContext_ is the execution context of a generator.
           1. Let _generator_ be the value of the Generator component of _genContext_.
-          1. Assert: GetGeneratorKind() is ~sync~.
+          1. Assert: GetGeneratorKind(_genContext_) is ~sync~.
           1. Set _generator_.[[GeneratorState]] to ~suspended-yield~.
           1. Remove _genContext_ from the execution context stack and restore the execution context that is at the top of the execution context stack as the running execution context.
           1. Let _callerContext_ be the running execution context.
@@ -48914,7 +48918,8 @@ THH:mm:ss.sss
         <dl class="header">
         </dl>
         <emu-alg>
-          1. Let _generatorKind_ be GetGeneratorKind().
+          1. Let _genContext_ be the running execution context.
+          1. Let _generatorKind_ be GetGeneratorKind(_genContext_).
           1. If _generatorKind_ is ~async~, return ? AsyncGeneratorYield(? Await(_value_)).
           1. Otherwise, return ? GeneratorYield(CreateIteratorResultObject(_value_, *false*)).
         </emu-alg>
@@ -49271,10 +49276,10 @@ THH:mm:ss.sss
         <emu-alg>
           1. Let _genContext_ be the running execution context.
           1. Assert: _genContext_ is the execution context of a generator.
-          1. Let _generator_ be the value of the Generator component of _genContext_.
-          1. Assert: GetGeneratorKind() is ~async~.
+          1. Assert: GetGeneratorKind(_genContext_) is ~async~.
           1. Let _completion_ be NormalCompletion(_value_).
           1. Assert: The execution context stack has at least two elements.
+          1. Let _generator_ be the value of the Generator component of _genContext_.
           1. Let _previousContext_ be the second to top element of the execution context stack.
           1. Let _previousRealm_ be _previousContext_'s Realm.
           1. Perform AsyncGeneratorCompleteStep(_generator_, _completion_, *false*, _previousRealm_).
